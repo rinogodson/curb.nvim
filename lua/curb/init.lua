@@ -1,7 +1,7 @@
 local M = {}
 
 M.config = {
-	trigger_key = "<leader>rino",
+	trigger_key = "<leader>ai",
 	accept_key = "<C-y>",
 }
 
@@ -13,7 +13,8 @@ function M.replace_visual()
 	local target_buf = vim.api.nvim_get_current_buf()
 
 	local buf = vim.api.nvim_create_buf(false, true)
-
+	vim.api.nvim_set_option_value("buftype", "prompt", { buf = buf })
+	vim.fn.prompt_setprompt(buf, " ")
 	local width = 40
 	local height = 1
 	local ui = vim.api.nvim_list_uis()[1]
@@ -24,12 +25,42 @@ function M.replace_visual()
 		col = (ui.width / 2) - (width / 2),
 		row = (ui.height / 2) - (height / 2),
 		style = "minimal",
-		border = "solid",
-		title = " Curb Prompt ",
+		border = "single",
+		title = { { " ⚡", "DiagnosticInfo" }, { "CURB ", "Keyword" } },
 		title_pos = "center",
+		footer = {
+			{ " Press ", "Comment" },
+			{ M.config.accept_key, "Comment" },
+			{ " to Apply ", "Comment" },
+		},
+		footer_pos = "right",
 	}
 
 	local win = vim.api.nvim_open_win(buf, true, opts)
+
+	vim.api.nvim_set_option_value("winhighlight", "NormalFloat:Normal,FloatBorder:Keyword", { win = win })
+	vim.api.nvim_set_option_value("wrap", true, { win = win })
+	vim.api.nvim_set_option_value("linebreak", true, { win = win })
+
+	-- Dynamic Height change logic
+	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
+		buffer = buf,
+		callback = function()
+			local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+			local total_height = 0
+
+			for _, line in ipairs(lines) do
+				local line_width = vim.fn.strdisplaywidth(line)
+				local needed_height = math.max(1, math.ceil(line_width / width))
+				total_height = total_height + needed_height
+			end
+
+			local new_height = math.min(math.max(total_height, 1), 5)
+
+			vim.api.nvim_win_set_config(win, { height = new_height })
+		end,
+	})
+
 	vim.keymap.set("i", M.config.accept_key, function()
 		vim.api.nvim_win_close(win, true)
 
