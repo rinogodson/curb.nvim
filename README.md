@@ -1,4 +1,11 @@
-# curb.nvim
+<img width="220" height="90" alt="CURB" src="https://github.com/user-attachments/assets/4f0941db-7ad6-4b08-a388-c7bc35c8c496" />
+
+<p>
+  <span style="color:#FFBD89;">C</span>ode 
+  <span style="color:#FFBD89;">U</span>nder 
+  <span style="color:#FFBD89;">R</span>igorous 
+  <span style="color:#FFBD89;">B</span>oundary
+</p>
 
 Curb provides a floating prompt for replacing the current visual selection.
 
