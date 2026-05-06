@@ -3,6 +3,13 @@ local M = {}
 M.config = {
 	trigger_key = "<leader>ai",
 	accept_key = "<C-y>",
+	highlights = {
+		normal = "Normal",
+		border = "Keyword",
+		title_icon = "DiagnosticInfo",
+		title_text = "Keyword",
+		footer = "Comment",
+	},
 }
 
 function M.replace_visual()
@@ -26,19 +33,26 @@ function M.replace_visual()
 		row = (ui.height / 2) - (height / 2),
 		style = "minimal",
 		border = "single",
-		title = { { " ⚡", "DiagnosticInfo" }, { "CURB ", "Keyword" } },
+		title = {
+			{ " ⚡", M.config.highlights.title_icon },
+			{ "CURB ", M.config.highlights.title_text },
+		},
 		title_pos = "center",
 		footer = {
-			{ " Press ", "Comment" },
-			{ M.config.accept_key, "Comment" },
-			{ " to Apply ", "Comment" },
+			{ " Press ", M.config.highlights.footer },
+			{ M.config.accept_key, M.config.highlights.footer },
+			{ " to Apply ", M.config.highlights.footer },
 		},
 		footer_pos = "right",
 	}
 
 	local win = vim.api.nvim_open_win(buf, true, opts)
 
-	vim.api.nvim_set_option_value("winhighlight", "NormalFloat:Normal,FloatBorder:Keyword", { win = win })
+	vim.api.nvim_set_option_value(
+		"winhighlight",
+		("NormalFloat:%s,FloatBorder:%s"):format(M.config.highlights.normal, M.config.highlights.border),
+		{ win = win }
+	)
 	vim.api.nvim_set_option_value("wrap", true, { win = win })
 	vim.api.nvim_set_option_value("linebreak", true, { win = win })
 
@@ -88,7 +102,7 @@ function M.setup(user_opts)
 	-- 	CurrDirPrint()
 	-- end, {})
 
-	M.config = vim.tbl_extend("force", M.config, user_opts or {})
+	M.config = vim.tbl_deep_extend("force", M.config, user_opts or {})
 
 	vim.api.nvim_create_user_command("Curb", function()
 		M.replace_visual()
