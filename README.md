@@ -1,7 +1,6 @@
 <img width="220" height="90" alt="CURB" src="https://github.com/user-attachments/assets/4f0941db-7ad6-4b08-a388-c7bc35c8c496" />
 
-<p><font color="#FFBD89">C</font>ode <font color="#FFBD89">U</font>nder <font color="#FFBD89">R</font>igorous <font color="#FFBD89">B</font>oundary
-</p>
+### C_ode_ U_nder_ R_igorous_ B_oundary_
 
 Curb provides a floating prompt for replacing the current visual selection.
 
