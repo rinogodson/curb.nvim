@@ -1,4 +1,5 @@
 local M = {}
+local highlight_ns = "Curb"
 
 M.config = {
 	trigger_key = "<leader>ai",
@@ -11,6 +12,26 @@ M.config = {
 		footer = "Comment",
 	},
 }
+
+local function resolve_highlight(name, spec, default_group)
+	if type(spec) == "string" then
+		if spec:match("^#%x%x%x%x%x%x$") then
+			local group = ("%s%s"):format(highlight_ns, name)
+			vim.api.nvim_set_hl(0, group, { fg = spec })
+			return group
+		end
+
+		return spec
+	end
+
+	if type(spec) == "table" then
+		local group = ("%s%s"):format(highlight_ns, name)
+		vim.api.nvim_set_hl(0, group, spec)
+		return group
+	end
+
+	return default_group
+end
 
 function M.replace_visual()
 	local start_pos = vim.fn.getpos("'<")
@@ -25,6 +46,13 @@ function M.replace_visual()
 	local width = 40
 	local height = 1
 	local ui = vim.api.nvim_list_uis()[1]
+	local highlights = {
+		normal = resolve_highlight("Normal", M.config.highlights.normal, "Normal"),
+		border = resolve_highlight("Border", M.config.highlights.border, "Keyword"),
+		title_icon = resolve_highlight("TitleIcon", M.config.highlights.title_icon, "DiagnosticInfo"),
+		title_text = resolve_highlight("TitleText", M.config.highlights.title_text, "Keyword"),
+		footer = resolve_highlight("Footer", M.config.highlights.footer, "Comment"),
+	}
 	local opts = {
 		relative = "editor",
 		width = width,
@@ -34,14 +62,14 @@ function M.replace_visual()
 		style = "minimal",
 		border = "single",
 		title = {
-			{ " ⚡", M.config.highlights.title_icon },
-			{ "CURB ", M.config.highlights.title_text },
+			{ " ⚡", highlights.title_icon },
+			{ "CURB ", highlights.title_text },
 		},
 		title_pos = "center",
 		footer = {
-			{ " Press ", M.config.highlights.footer },
-			{ M.config.accept_key, M.config.highlights.footer },
-			{ " to Apply ", M.config.highlights.footer },
+			{ " Press ", highlights.footer },
+			{ M.config.accept_key, highlights.footer },
+			{ " to Apply ", highlights.footer },
 		},
 		footer_pos = "right",
 	}
@@ -50,7 +78,7 @@ function M.replace_visual()
 
 	vim.api.nvim_set_option_value(
 		"winhighlight",
-		("NormalFloat:%s,FloatBorder:%s"):format(M.config.highlights.normal, M.config.highlights.border),
+		("NormalFloat:%s,FloatBorder:%s"):format(highlights.normal, highlights.border),
 		{ win = win }
 	)
 	vim.api.nvim_set_option_value("wrap", true, { win = win })
