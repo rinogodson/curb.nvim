@@ -25,6 +25,11 @@ end
 --- @param extmark_id number The ID returned from create_extmark function
 --- @param replacer_fn function|table|string Function that returns the output, or the output lines directly
 function M.replace_with_extmark(buf, extmark_id, replacer_fn)
+	local mark = vim.api.nvim_buf_get_extmark_by_id(buf, namespace, extmark_id, { details = true })
+	if not mark or #mark == 0 then
+		return
+	end
+
 	local new_lines
 	if type(replacer_fn) == "function" then
 		new_lines = replacer_fn()
@@ -40,17 +45,13 @@ function M.replace_with_extmark(buf, extmark_id, replacer_fn)
 		new_lines = vim.split(new_lines, "\n")
 	end
 
-	-- extmark fethcing
-	local mark = vim.api.nvim_buf_get_extmark_by_id(buf, namespace, extmark_id, { details = true })
-	if not mark or #mark == 0 then
-		return
-	end
-
 	local start_row, start_col = mark[1], mark[2]
 	local details = mark[3]
 	local end_row, end_col = details.end_row, details.end_col
 
 	vim.api.nvim_buf_set_text(buf, start_row, start_col, end_row, end_col, new_lines)
+
+	M.clear_extmark(buf, extmark_id)
 end
 
 -- @arungeorgesaji : Extmark clearer here, make sure to use it

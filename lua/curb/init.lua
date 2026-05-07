@@ -90,7 +90,7 @@ function M.replace_visual()
 
 		vim.api.nvim_win_close(win, true)
 
-		editor.replace_with_extmark(target_buf, extmark_id, function(update_text)
+		editor.replace_with_extmark(target_buf, extmark_id, function()
 			-- TODO: Replace this mock array with your actual AI streaming logic
 			local mock_llm_response = {
 				"-- [AI Output Streaming Here] --",
@@ -98,10 +98,7 @@ function M.replace_visual()
 				string.format("-- Usr Prompt len: %d", #user_prompt),
 			}
 
-			update_text(mock_llm_response)
-
-			-- @arungeorgesaji : Clear the extmark after replacement is done to avoid clutter and potential bugs
-			editor.clear_extmark(target_buf, extmark_id)
+			return mock_llm_response
 		end)
 	end, { buffer = buf, noremap = true, silent = true })
 
