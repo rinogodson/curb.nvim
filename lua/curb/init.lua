@@ -2,12 +2,40 @@ local config = require("curb.config")
 local highlights = require("curb.highlights")
 local editor = require("curb.editor")
 local prompt = require("curb.prompt")
+local provider = require("curb.provider")
 
 local M = {}
 
 M.editor = editor
 M.prompt = prompt
 M._name = "curb"
+
+function M.set_api_key()
+	vim.ui.input({ prompt = "Curb API key: " }, function(input)
+		if input == nil then
+			return
+		end
+
+		local api_key = vim.trim(input)
+		if api_key == "" then
+			vim.notify("Curb: API key was empty", vim.log.levels.WARN)
+			return
+		end
+
+		local path = provider.set_api_key(api_key)
+		vim.notify("Curb: saved API key to " .. path, vim.log.levels.INFO)
+	end)
+end
+
+function M.api_key_status()
+	local path = provider.api_key_path()
+	if provider.has_api_key() then
+		vim.notify("Curb: API key is configured. File path: " .. path, vim.log.levels.INFO)
+		return
+	end
+
+	vim.notify("Curb: no API key configured. Run :CurbSetApiKey", vim.log.levels.WARN)
+end
 
 function M.replace_visual()
 	local start_pos = vim.fn.getpos("'<")
@@ -90,15 +118,13 @@ function M.replace_visual()
 
 		vim.api.nvim_win_close(win, true)
 
-		editor.replace_with_extmark(target_buf, extmark_id, function()
-			-- TODO: Replace this mock array with your actual AI streaming logic
-			local mock_llm_response = {
-				"-- [AI Output Streaming Here] --",
-				string.format("-- Sys Prompt len: %d", #sys_prompt),
-				string.format("-- Usr Prompt len: %d", #user_prompt),
-			}
+		provider.generate_replacement(sys_prompt, user_prompt, function(replacement)
+			if not replacement then
+				editor.clear_extmark(target_buf, extmark_id)
+				return
+			end
 
-			return mock_llm_response
+			editor.replace_with_extmark(target_buf, extmark_id, replacement)
 		end)
 	end, { buffer = buf, noremap = true, silent = true })
 
@@ -112,6 +138,14 @@ function M.setup(user_opts)
 	vim.api.nvim_create_user_command("Curb", function()
 		M.replace_visual()
 	end, { range = true })
+
+	vim.api.nvim_create_user_command("CurbSetApiKey", function()
+		M.set_api_key()
+	end, {})
+
+	vim.api.nvim_create_user_command("CurbApiKeyStatus", function()
+		M.api_key_status()
+	end, {})
 
 	vim.keymap.set(
 		"x",

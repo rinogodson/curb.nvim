@@ -54,7 +54,7 @@ function M.replace_with_extmark(buf, extmark_id, replacer_fn)
 	M.clear_extmark(buf, extmark_id)
 end
 
--- @arungeorgesaji : Extmark clearer here, make sure to use it
+-- Clears the tracked selection extmark 
 function M.clear_extmark(buf, extmark_id)
 	vim.api.nvim_buf_del_extmark(buf, namespace, extmark_id)
 end

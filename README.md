@@ -28,6 +28,12 @@ replacement.
 require("curb").setup({
   trigger_key = "<leader>ai",
   accept_key = "<C-y>",
+  provider = {
+    endpoint = "https://ai.hackclub.com/proxy/v1/chat/completions",
+    model = "qwen/qwen3-coder-plus",
+    api_key_env = "HACKCLUB_API_KEY",
+    api_key_file = nil,
+  },
   highlights = {
     normal = "Normal",
     border = "Keyword",
@@ -37,6 +43,11 @@ require("curb").setup({
   },
 })
 ```
+
+`curb` uses `curl` asynchronously through `vim.system(...)`. Set the API key
+environment variable named by `provider.api_key_env` before starting Neovim.
+You can also save the key from inside Neovim with `:CurbSetApiKey`. By default
+it is stored at `stdpath("data") .. "/curb/api_key"`.
 
 ## Help
 

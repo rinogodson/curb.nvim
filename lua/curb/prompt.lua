@@ -46,17 +46,22 @@ function M.build(buf, start_row, end_row, user_instruction)
 	local code_snippet = table.concat(lines, "\n")
 	local lsp_context = get_lsp_context(buf, start_row, end_row)
 
-	local system_prompt = string.format(
-		[[
-You are an expert software engineer coding in `%s`.
-Your task is to analyze the provided code snippet, context, and user instruction.
-Provide ONLY the modified raw code in your output.
-Do not include explanations or markdown formatting blocks unless explicitly requested.
-]],
-		ft
-	)
+  local system_prompt = string.format([[
+    You are editing `%s` code.
 
-	local user_prompt = string.format("Instruction: %s\n\n", user_instruction)
+    Return ONLY raw replacement code.
+    Do NOT use markdown.
+    Do NOT wrap code in triple backticks.
+    Do NOT include a language label.
+    ]], ft)
+
+  local user_prompt = string.format([[
+    Instruction:
+    %s
+
+    Code:
+    %s
+    ]], user_instruction, code_snippet)
 
 	if lsp_context.symbols ~= "" then
 		user_prompt = user_prompt .. string.format("LSP Enclosing Scope:\n%s\n\n", lsp_context.symbols)

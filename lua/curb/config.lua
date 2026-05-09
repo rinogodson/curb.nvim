@@ -3,6 +3,12 @@ local Keys = {}
 local defaults = {
 	trigger_key = "<leader>ai",
 	accept_key = "<C-y>",
+	provider = {
+		endpoint = "https://ai.hackclub.com/proxy/v1/chat/completions",
+		model = "qwen/qwen3-coder-plus",
+		api_key_env = "HACKCLUB_API_KEY",
+		api_key_file = nil,
+	},
 	highlights = {
 		normal = "Normal",
 		border = "Keyword",
