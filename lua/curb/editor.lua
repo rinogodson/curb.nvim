@@ -6,6 +6,7 @@ local timer
 local loading_extmark_id
 local loading_group
 local review_states = {}
+local review_keymaps_ready = {}
 
 ---@param buf number
 ---@param start_row number
@@ -141,20 +142,16 @@ local function clear_review_state(state)
 		pcall(vim.api.nvim_del_augroup_by_id, state.group)
 	end
 
-	for _, mode in ipairs({ "n", "i" }) do
-		if state.accept_key then
-			pcall(vim.keymap.del, mode, state.accept_key, { buffer = state.buf })
-		end
-		if state.reject_key then
-			pcall(vim.keymap.del, mode, state.reject_key, { buffer = state.buf })
-		end
-		if state.reprompt_key then
-			pcall(vim.keymap.del, mode, state.reprompt_key, { buffer = state.buf })
+	M.clear_extmark(state.buf, state.extmark_id)
+
+	local states = review_states[state.buf]
+	if states then
+		states[state.extmark_id] = nil
+		if next(states) == nil then
+			review_states[state.buf] = nil
+			review_keymaps_ready[state.buf] = nil
 		end
 	end
-
-	M.clear_extmark(state.buf, state.extmark_id)
-	review_states[state.buf] = nil
 end
 
 ---@param buf number
@@ -167,6 +164,69 @@ local function get_review_region(buf, extmark_id)
 	end
 
 	return mark[1], mark[3].end_row, mark
+end
+
+---@param buf number
+---@return table
+local function ensure_review_states(buf)
+	review_states[buf] = review_states[buf] or {}
+	return review_states[buf]
+end
+
+---@param buf number
+local function get_review_state_at_cursor(buf)
+	local states = review_states[buf]
+	if not states then
+		return nil
+	end
+
+	local row = vim.api.nvim_win_get_cursor(0)[1] - 1
+	for _, state in pairs(states) do
+		local start_row, end_row = get_review_region(buf, state.extmark_id)
+		if start_row and start_row <= row and row <= end_row then
+			return state
+		end
+	end
+
+	return nil
+end
+
+---@param buf number
+---@param lhs string
+---@param action string
+local function set_review_keymaps(buf, lhs, action)
+	local function invoke()
+		local state = get_review_state_at_cursor(buf)
+		if not state then
+			vim.notify("Curb: Move the cursor into a pending review block first", vim.log.levels.WARN)
+			return
+		end
+
+		state.finish(action)
+	end
+
+	for _, mode in ipairs({ "n", "i" }) do
+		vim.keymap.set(mode, lhs, invoke, {
+			buffer = buf,
+			noremap = true,
+			silent = true,
+			desc = "Curb " .. action,
+		})
+	end
+end
+
+---@param buf number
+---@param config table
+local function ensure_review_keymaps(buf, config)
+	ensure_review_states(buf)
+	if review_keymaps_ready[buf] then
+		return
+	end
+
+	set_review_keymaps(buf, config.values.accept_key, "accept")
+	set_review_keymaps(buf, config.values.reject_key, "reject")
+	set_review_keymaps(buf, config.values.reprompt_key, "reprompt")
+	review_keymaps_ready[buf] = true
 end
 
 ---@param buf number
@@ -186,10 +246,6 @@ function M.replace_interactive(buf, extmark_id, new_lines, reprompt_cb)
 	end
 	vim.api.nvim_buf_set_lines(buf, s_row, e_row + 1, false, new_lines)
 	M.clear_extmark(buf, extmark_id)
-
-	if review_states[buf] then
-		clear_review_state(review_states[buf])
-	end
 
 	local config = require("curb.config")
 	local accept_key = config.values.accept_key
@@ -216,13 +272,24 @@ function M.replace_interactive(buf, extmark_id, new_lines, reprompt_cb)
 		reject_key = reject_key,
 		reprompt_key = reprompt_key,
 	}
-	review_states[buf] = state
+	local states = ensure_review_states(buf)
+	states[interactive_id] = state
+	ensure_review_keymaps(buf, config)
 
 	vim.api.nvim_create_autocmd({ "BufWipeout" }, {
 		group = state.group,
 		buffer = buf,
 		callback = function()
-			clear_review_state(review_states[buf])
+			local current_states = review_states[buf]
+			if not current_states then
+				return
+			end
+
+			for _, current_state in pairs(current_states) do
+				if type(current_state) == "table" and current_state.extmark_id then
+					clear_review_state(current_state)
+				end
+			end
 		end,
 	})
 
@@ -260,23 +327,7 @@ function M.replace_interactive(buf, extmark_id, new_lines, reprompt_cb)
 			reprompt_cb(new_mark, current_lines)
 		end)
 	end
-
-	local function map_action(mode, lhs, action)
-		vim.keymap.set(mode, lhs, function()
-			finish(action)
-		end, {
-			buffer = buf,
-			noremap = true,
-			silent = true,
-			desc = "Curb " .. action,
-		})
-	end
-
-	for _, mode in ipairs({ "n", "i" }) do
-		map_action(mode, accept_key, "accept")
-		map_action(mode, reject_key, "reject")
-		map_action(mode, reprompt_key, "reprompt")
-	end
+	state.finish = finish
 end
 
 return M
