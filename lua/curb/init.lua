@@ -71,6 +71,7 @@ function M.open_prompt_for_extmark(target_buf, extmark_id)
 	}
 
 	local win = vim.api.nvim_open_win(buf, true, opts)
+	local submitted = false
 
 	vim.api.nvim_set_option_value(
 		"winhighlight",
@@ -93,7 +94,21 @@ function M.open_prompt_for_extmark(target_buf, extmark_id)
 		end,
 	})
 
+	vim.api.nvim_create_autocmd({ "BufWipeout", "WinClosed" }, {
+		buffer = buf,
+		callback = function(args)
+			if submitted then
+				return
+			end
+			if args.event == "WinClosed" and tostring(win) ~= args.match then
+				return
+			end
+			editor.clear_extmark(target_buf, extmark_id)
+		end,
+	})
+
 	vim.keymap.set("i", config.values.accept_key, function()
+		submitted = true
 		local prompt_lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
 		local instruction = table.concat(prompt_lines, " "):gsub("^%s*", "")
 		local sys_prompt, user_prompt = prompt.build(target_buf, start_row, end_row, instruction)
