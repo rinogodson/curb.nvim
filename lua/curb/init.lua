@@ -65,7 +65,7 @@ function M.open_prompt_for_extmark(target_buf, extmark_id)
 		footer = {
 			{ " Press ", resolved_highlights.footer },
 			{ config.values.accept_key, resolved_highlights.footer },
-			{ " to Apply ", resolved_highlights.footer },
+			{ " to Submit ", resolved_highlights.footer },
 		},
 		footer_pos = "right",
 	}

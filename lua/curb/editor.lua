@@ -5,6 +5,7 @@ local uv = vim.uv or vim.loop
 local timer
 local loading_extmark_id
 local loading_group
+local review_states = {}
 
 ---@param buf number
 ---@param start_row number
@@ -123,99 +124,159 @@ function M.stop_loading(buf)
 	end
 end
 
+---@param action string
+---@param key string
+---@return string
+local function action_hint(action, key)
+	return string.format("[%s] %s", key, action)
+end
+
+---@param state table
+local function clear_review_state(state)
+	if not state then
+		return
+	end
+
+	if state.group then
+		pcall(vim.api.nvim_del_augroup_by_id, state.group)
+	end
+
+	for _, mode in ipairs({ "n", "i" }) do
+		if state.accept_key then
+			pcall(vim.keymap.del, mode, state.accept_key, { buffer = state.buf })
+		end
+		if state.reject_key then
+			pcall(vim.keymap.del, mode, state.reject_key, { buffer = state.buf })
+		end
+		if state.reprompt_key then
+			pcall(vim.keymap.del, mode, state.reprompt_key, { buffer = state.buf })
+		end
+	end
+
+	M.clear_extmark(state.buf, state.extmark_id)
+	review_states[state.buf] = nil
+end
+
+---@param buf number
+---@param extmark_id number
+---@return number|nil, number|nil, table|nil
+local function get_review_region(buf, extmark_id)
+	local mark = vim.api.nvim_buf_get_extmark_by_id(buf, namespace, extmark_id, { details = true })
+	if not mark or #mark == 0 then
+		return nil, nil, nil
+	end
+
+	return mark[1], mark[3].end_row, mark
+end
+
 ---@param buf number
 ---@param extmark_id number
 ---@param new_lines string|table
 ---@param reprompt_cb function
 function M.replace_interactive(buf, extmark_id, new_lines, reprompt_cb)
-	local mark = vim.api.nvim_buf_get_extmark_by_id(buf, namespace, extmark_id, { details = true })
-	if not mark or #mark == 0 then
+	local s_row, e_row = get_review_region(buf, extmark_id)
+	if not s_row then
 		return
 	end
 
-	local s_row, e_row = mark[1], mark[3].end_row
 	local original_lines = vim.api.nvim_buf_get_lines(buf, s_row, e_row + 1, false)
-
-	local cs = vim.bo[buf].commentstring
-	if cs == "" or not cs:find("%%s") then
-		cs = "-- %s"
-	end
-	local accept_str = cs:format("Accept (delete line to apply)")
-	local reject_str = cs:format("Reject (delete line to cancel)")
-	local reprompt_str = cs:format("Reprompt (delete line to retry)")
 
 	if type(new_lines) == "string" then
 		new_lines = vim.split(new_lines, "\n")
 	end
-	local display_lines = vim.deepcopy(new_lines)
-	table.insert(display_lines, accept_str)
-	table.insert(display_lines, reject_str)
-	table.insert(display_lines, reprompt_str)
-
-	vim.api.nvim_buf_set_lines(buf, s_row, e_row + 1, false, display_lines)
+	vim.api.nvim_buf_set_lines(buf, s_row, e_row + 1, false, new_lines)
 	M.clear_extmark(buf, extmark_id)
 
+	if review_states[buf] then
+		clear_review_state(review_states[buf])
+	end
+
+	local config = require("curb.config")
+	local accept_key = config.values.accept_key
+	local reject_key = config.values.reject_key
+	local reprompt_key = config.values.reprompt_key
+	local hints = table.concat({
+		action_hint("Accept", accept_key),
+		action_hint("Reject", reject_key),
+		action_hint("Reprompt", reprompt_key),
+	}, "  ")
+
 	local interactive_id = vim.api.nvim_buf_set_extmark(buf, namespace, s_row, 0, {
-		end_row = s_row + #display_lines - 1,
+		end_row = s_row + #new_lines - 1,
 		end_col = 0,
 		hl_group = "DiffAdd",
+		virt_lines = { { { hints, "Comment" } } },
 	})
 
-	local base_str = table.concat(display_lines, "\n")
-	local group = vim.api.nvim_create_augroup("CurbInteractive_" .. interactive_id, { clear = true })
+	local state = {
+		buf = buf,
+		extmark_id = interactive_id,
+		group = vim.api.nvim_create_augroup("CurbInteractive_" .. interactive_id, { clear = true }),
+		accept_key = accept_key,
+		reject_key = reject_key,
+		reprompt_key = reprompt_key,
+	}
+	review_states[buf] = state
 
-	vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
-		group = group,
+	vim.api.nvim_create_autocmd({ "BufWipeout" }, {
+		group = state.group,
 		buffer = buf,
 		callback = function()
-			local m = vim.api.nvim_buf_get_extmark_by_id(buf, namespace, interactive_id, { details = true })
-			-- Safety: check if extmark is valid and not collapsed inversely
-			if not m or #m == 0 then
-				return
-			end
-			local cur_s, cur_e = m[1], m[3].end_row
-			if cur_s > cur_e then
-				return
-			end
-
-			local current = vim.api.nvim_buf_get_lines(buf, cur_s, cur_e + 1, false)
-			local current_str = table.concat(current, "\n")
-			if current_str == base_str then
-				return
-			end
-
-			local has_a = current_str:find(accept_str, 1, true)
-			local has_r = current_str:find(reject_str, 1, true)
-			local has_p = current_str:find(reprompt_str, 1, true)
-
-			if
-				(not has_a and has_r and has_p)
-				or (has_a and not has_r and has_p)
-				or (has_a and has_r and not has_p)
-			then
-				vim.api.nvim_del_augroup_by_id(group)
-				if not has_a then
-					vim.api.nvim_buf_set_lines(buf, cur_s, cur_e + 1, false, new_lines)
-					vim.notify("Curb: Applied", vim.log.levels.INFO)
-				elseif not has_r then
-					vim.api.nvim_buf_set_lines(buf, cur_s, cur_e + 1, false, original_lines)
-					vim.notify("Curb: Cancelled", vim.log.levels.WARN)
-				elseif not has_p then
-					vim.api.nvim_buf_set_lines(buf, cur_s, cur_e + 1, false, original_lines)
-					local new_mark = M.create_extmark(buf, cur_s, 0, cur_s + #original_lines - 1, 0)
-					vim.schedule(function()
-						reprompt_cb(new_mark)
-					end)
-				end
-				M.clear_extmark(buf, interactive_id)
-			else
-				local cursor = vim.api.nvim_win_get_cursor(0)
-				vim.api.nvim_buf_set_lines(buf, cur_s, cur_e + 1, false, display_lines)
-				pcall(vim.api.nvim_win_set_cursor, 0, cursor)
-				vim.notify("Curb: Locked. Delete an action line to proceed.", vim.log.levels.WARN)
-			end
+			clear_review_state(review_states[buf])
 		end,
 	})
+
+	local function get_current_lines()
+		local cur_s, cur_e = get_review_region(buf, interactive_id)
+		if not cur_s then
+			return nil, nil, nil
+		end
+
+		return cur_s, cur_e, vim.api.nvim_buf_get_lines(buf, cur_s, cur_e + 1, false)
+	end
+
+	local function finish(action)
+		local cur_s, cur_e, current_lines = get_current_lines()
+		if not cur_s then
+			clear_review_state(state)
+			return
+		end
+
+		clear_review_state(state)
+
+		if action == "accept" then
+			vim.notify("Curb: Applied", vim.log.levels.INFO)
+			return
+		end
+
+		vim.api.nvim_buf_set_lines(buf, cur_s, cur_e + 1, false, original_lines)
+		if action == "reject" then
+			vim.notify("Curb: Cancelled", vim.log.levels.WARN)
+			return
+		end
+
+		local new_mark = M.create_extmark(buf, cur_s, 0, cur_s + #original_lines - 1, 0)
+		vim.schedule(function()
+			reprompt_cb(new_mark, current_lines)
+		end)
+	end
+
+	local function map_action(mode, lhs, action)
+		vim.keymap.set(mode, lhs, function()
+			finish(action)
+		end, {
+			buffer = buf,
+			noremap = true,
+			silent = true,
+			desc = "Curb " .. action,
+		})
+	end
+
+	for _, mode in ipairs({ "n", "i" }) do
+		map_action(mode, accept_key, "accept")
+		map_action(mode, reject_key, "reject")
+		map_action(mode, reprompt_key, "reprompt")
+	end
 end
 
 return M
