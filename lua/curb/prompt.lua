@@ -46,22 +46,29 @@ function M.build(buf, start_row, end_row, user_instruction)
 	local code_snippet = table.concat(lines, "\n")
 	local lsp_context = get_lsp_context(buf, start_row, end_row)
 
-  local system_prompt = string.format([[
+	local system_prompt = string.format(
+		[[
     You are editing `%s` code.
 
     Return ONLY raw replacement code.
     Do NOT use markdown.
     Do NOT wrap code in triple backticks.
     Do NOT include a language label.
-    ]], ft)
+    ]],
+		ft
+	)
 
-  local user_prompt = string.format([[
+	local user_prompt = string.format(
+		[[
     Instruction:
     %s
 
     Code:
     %s
-    ]], user_instruction, code_snippet)
+    ]],
+		user_instruction,
+		code_snippet
+	)
 
 	if lsp_context.symbols ~= "" then
 		user_prompt = user_prompt .. string.format("LSP Enclosing Scope:\n%s\n\n", lsp_context.symbols)
