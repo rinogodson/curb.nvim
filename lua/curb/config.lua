@@ -12,9 +12,7 @@ local defaults = {
 		api_key_file = nil,
 	},
 	auditor = {
-		endpoint = "https://ai.hackclub.com/proxy/v1/chat/completions",
 		model = "deepseek/deepseek-v4-pro",
-		api_key_env = "HACKCLUB_API_KEY",
 	},
 	highlights = {
 		normal = "Normal",
