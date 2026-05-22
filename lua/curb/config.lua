@@ -7,9 +7,14 @@ local defaults = {
 	reprompt_key = "<C-p>",
 	provider = {
 		endpoint = "https://ai.hackclub.com/proxy/v1/chat/completions",
-		model = "qwen/qwen3-coder-plus",
+		model = "deepseek/deepseek-v4-flash:free",
 		api_key_env = "HACKCLUB_API_KEY",
 		api_key_file = nil,
+	},
+	auditor = {
+		endpoint = "https://ai.hackclub.com/proxy/v1/chat/completions",
+		model = "deepseek/deepseek-v4-pro",
+		api_key_env = "HACKCLUB_API_KEY",
 	},
 	highlights = {
 		normal = "Normal",
