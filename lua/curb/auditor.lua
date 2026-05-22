@@ -17,6 +17,7 @@ try to read files in detail for this.
 
 You must communicate strictly in valid JSON format. Do NOT wrap your response in markdown blocks (no ```json).
 
+
 AVAILABLE ACTIONS:
 1. To read a file to gain context, output exactly:
 {"action": "read", "file": "path/to/file.lua"}
@@ -24,6 +25,9 @@ AVAILABLE ACTIONS:
 2. When you have enough context and are ready to deliver the final report, output exactly:
 {"action": "done", "report": "# Security & Refactor Audit\n<your markdown report here>"}
 ]]
+
+-- for debuggin add this prompt
+-- For now, you just need to read two files of your choice and give the response <- this is important
 
 local function show_report(report_text)
 	local buf = vim.api.nvim_create_buf(false, true)
@@ -50,7 +54,7 @@ local function run_agent(messages, api_key, iteration)
 	end
 
 	local provider_opts = config.values.provider
-	local model = (config.values.auditor and config.values.auditor.model) or provider_opts.model
+	local model = config.values.auditor.model
 
 	local body = vim.json.encode({
 		model = model,

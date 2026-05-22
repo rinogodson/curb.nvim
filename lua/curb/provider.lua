@@ -109,10 +109,7 @@ function M.generate_replacement(system_prompt, user_prompt, on_done)
 	if not api_key or api_key == "" then
 		vim.schedule(function()
 			vim.notify(
-				string.format(
-					"Curb: missing API key. Set $%s or run :CurbSetApiKey",
-					provider.api_key_env
-				),
+				string.format("Curb: missing API key. Set $%s or run :CurbSetApiKey", provider.api_key_env),
 				vim.log.levels.ERROR
 			)
 			on_done(nil)

@@ -7,12 +7,12 @@ local defaults = {
 	reprompt_key = "<C-p>",
 	provider = {
 		endpoint = "https://ai.hackclub.com/proxy/v1/chat/completions",
-		model = "deepseek/deepseek-v4-flash:free",
+		model = "openai/gpt-5.1-codex-mini",
 		api_key_env = "HACKCLUB_API_KEY",
 		api_key_file = nil,
 	},
 	auditor = {
-		model = "deepseek/deepseek-v4-flash:free",
+		model = "openai/gpt-5.1-codex-mini",
 	},
 	highlights = {
 		normal = "Normal",
