@@ -154,6 +154,10 @@ end
 function M.setup(user_opts)
 	config.setup(user_opts)
 
+	vim.api.nvim_create_user_command("CurbAudit", function()
+		require("curb.auditor").start_audit()
+	end, {})
+
 	vim.api.nvim_create_user_command("Curb", function()
 		M.replace_visual()
 	end, { range = true })

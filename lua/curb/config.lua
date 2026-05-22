@@ -12,7 +12,7 @@ local defaults = {
 		api_key_file = nil,
 	},
 	auditor = {
-		model = "deepseek/deepseek-v4-pro",
+		model = "deepseek/deepseek-v4-flash:free",
 	},
 	highlights = {
 		normal = "Normal",

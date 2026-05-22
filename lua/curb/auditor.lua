@@ -42,9 +42,9 @@ local function show_report(report_text)
 end
 
 local function run_agent(messages, api_key, iteration)
-	if iteration > 20 then
+	if iteration > 90 then
 		vim.schedule(function()
-			vim.notify("Curb: Auditor reached max iterations (20).", vim.log.levels.WARN)
+			vim.notify("Curb: Auditor reached max iterations (90).", vim.log.levels.WARN)
 		end)
 		return
 	end
@@ -60,6 +60,8 @@ local function run_agent(messages, api_key, iteration)
 	vim.system({
 		"curl",
 		"-sS",
+		"--max-time",
+		"60",
 		"-X",
 		"POST",
 		provider_opts.endpoint,
@@ -110,6 +112,7 @@ local function run_agent(messages, api_key, iteration)
 			if command.action == "done" then
 				if command.report then
 					show_report(command.report)
+					vim.notify("Curb: Auditor finished and provided a report.", vim.log.levels.INFO)
 				else
 					vim.notify("Curb: Auditor finished but provided no report.", vim.log.levels.ERROR)
 				end
@@ -169,4 +172,28 @@ function M.start_audit()
 			return
 		end
 	end
+
+	vim.notify("Curb: Starting Agentic Auditor... Gathering project files.", vim.log.levels.INFO)
+
+	-- files retrieving
+	local files_list = ""
+	local git_files = vim.fn.systemlist({ "git", "ls-files" })
+	if vim.v.shell_error == 0 then
+		files_list = table.concat(git_files, "\n")
+	else
+		vim.notify("Curb: Not a Git repository. Audit might be weak.", vim.log.levels.WARN)
+	end
+
+	local initial_user_prompt = "Here is the list of files in the project:\n"
+		.. files_list
+		.. "\n\nWhich file do you want to read first?"
+
+	local messages = {
+		{ role = "system", content = SYSTEM_PROMPT },
+		{ role = "user", content = initial_user_prompt },
+	}
+
+	run_agent(messages, api_key, 1)
 end
+
+return M
