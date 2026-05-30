@@ -1,2 +1,10 @@
-@import "https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&display=swap";
-@import "tailwindcss";
+@import 'https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&display=swap';
+@import 'tailwindcss';
+
+body {
+	background-color: #000;
+}
+
+* {
+	user-select: none;
+}
