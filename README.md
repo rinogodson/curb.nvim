@@ -2,7 +2,8 @@
 
 ### C*ode* U*nder* R*igorous* B*oundary*
 
-Curb provides a floating prompt for replacing the current visual selection.
+## DEMO:
+https://github.com/user-attachments/assets/79999065-d7a7-4f19-aedd-f50a25538ff5
 
 ## Installation
 
